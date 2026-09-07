@@ -1,0 +1,116 @@
+name: Build AltServer Linux ARMv7
+
+on:
+  push:
+    branches:
+      - new
+  pull_request:
+    branches:
+      - new
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-armv7:
+    name: Build ARMv7
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+
+      - name: Prepare output
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/build_output"
+
+      - name: Pull ARMv7 build environment
+        run: |
+          docker pull ghcr.io/nyamisty/altserver_builder_alpine_armv7
+
+      - name: Build AltServer ARMv7
+        run: |
+          docker run --rm \
+            --platform linux/arm/v7 \
+            -v "$GITHUB_WORKSPACE:/workdir" \
+            -w /workdir \
+            ghcr.io/nyamisty/altserver_builder_alpine_armv7 \
+            sh -c '
+              set -eux
+
+              rm -rf build
+              mkdir -p build
+
+              cd build
+
+              make -f ../Makefile -j3
+
+              echo "===== Build output ====="
+              ls -lah
+
+              file AltServer-*
+            '
+
+      - name: Verify ARMv7 binary
+        run: |
+          set -eux
+
+          find build -maxdepth 1 -type f -name 'AltServer-*' -print
+
+          BINARY="$(find build -maxdepth 1 -type f -name 'AltServer-*' | head -n 1)"
+
+          if [ -z "$BINARY" ]; then
+            echo "::error::AltServer binary was not produced"
+            exit 1
+          fi
+
+          echo "Binary: $BINARY"
+
+          file "$BINARY"
+
+          if ! file "$BINARY" | grep -Eqi 'ARM|arm'; then
+            echo "::error::Output is not an ARM binary"
+            exit 1
+          fi
+
+          chmod +x "$BINARY"
+
+      - name: Prepare artifact
+        run: |
+          set -eux
+
+          BINARY="$(find build -maxdepth 1 -type f -name 'AltServer-*' | head -n 1)"
+
+          cp "$BINARY" build_output/AltServer-armv7
+          chmod +x build_output/AltServer-armv7
+
+          echo "===== Artifact ====="
+          ls -lah build_output
+
+          echo "===== File information ====="
+          file build_output/AltServer-armv7
+
+      - name: Upload ARMv7 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AltServer-Linux-armv7
+          path: build_output/AltServer-armv7
+          if-no-files-found: error
+          retention-days: 30
+:::
+
+### Có một cái rất quan trọng
+
+`Makefile` branch `new` của anh hiện xác định architecture bằng:
+
+```make
+ARCH := $(shell gcc -dumpmachine | cut -d- -f 1)
