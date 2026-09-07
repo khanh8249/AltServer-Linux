@@ -1,6 +1,6 @@
 [submodule "AltServer-Windows"]
 	path = upstream_repo
-	url = https://github.com/rileytestut/AltServer-Windows
+	url = https://github.com/khanh8249/AltServer-Windows
 	branch = develop
 [submodule "libraries/libplist"]
 	path = libraries/libplist
