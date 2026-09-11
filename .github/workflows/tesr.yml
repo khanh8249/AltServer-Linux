@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  UPSTREAM_BRANCH: new        # ← branch của submodule AltServer-Windows
+  UPSTREAM_BRANCH: arm_1.7.5_jayce
 
 jobs:
   check:
@@ -35,7 +35,6 @@ jobs:
         id: check
         run: |
           if [[ "$needCheck" == 1 ]]; then
-            echo "Checking changes in upstream_repo..."
             current_upstream=$(git ls-tree HEAD upstream_repo | awk '{ print $3 }')
             echo "Current Upstream Commit: $current_upstream"
 
@@ -47,14 +46,11 @@ jobs:
             echo "New Upstream Commit: $new_upstream"
 
             if [[ "$current_upstream" != "$new_upstream" ]]; then
-              echo "Upstream got new commits, go updating!"
               echo "updated=1" >> $GITHUB_OUTPUT
             else
-              echo "Upstream no change~"
               echo "updated=0" >> $GITHUB_OUTPUT
             fi
           else
-            echo "Needn't to check changes, directly return~"
             echo "updated=0" >> $GITHUB_OUTPUT
           fi
     outputs:
@@ -118,26 +114,18 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [build]
-    name: "release"
     steps:
-      - name: Create artifact directory
-        run: mkdir -p build_output
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - run: mkdir -p build_output
+      - uses: actions/download-artifact@v4
         with:
           path: build_output
-
-      - name: Rearrange artifacts
-        run: |
+      - run: |
           find build_output
           mkdir -p build_release
           mv build_output/*/* build_release 2>/dev/null || mv build_output/* build_release
           ls build_release
           [ "$(ls -A build_release)" ]
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: build_release/*
         env:
@@ -150,25 +138,18 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit Submodule Update
-        run: |
+      - run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-
           cd upstream_repo
           git fetch origin ${{ env.UPSTREAM_BRANCH }}
           git checkout origin/${{ env.UPSTREAM_BRANCH }}
           cd ..
-
           git add upstream_repo
-          git commit -m "[server] Sync Upstream Repo commit" || echo "No changes to commit"
-
-      - name: Push changes
-        run: git push
+          git commit -m "[server] Sync Upstream Repo commit" || echo "No changes"
+      - run: git push
