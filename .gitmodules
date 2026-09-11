@@ -1,7 +1,7 @@
 [submodule "AltServer-Windows"]
 	path = upstream_repo
 	url = https://github.com/khanh8249/AltServer-Windows
-	branch = master
+	branch = arm_1.7.5_jayce
 [submodule "libraries/libplist"]
 	path = libraries/libplist
 	url = https://github.com/libimobiledevice/libplist
